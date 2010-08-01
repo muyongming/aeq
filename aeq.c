@@ -40,6 +40,7 @@
 #define Q 1.224745
 
 typedef struct {
+   int initted;
    char path[PATH_MAX];
    int notify;
    int on;
@@ -233,6 +234,8 @@ static snd_pcm_sframes_t aeq_transfer (snd_pcm_extplug_t * plug,
 
 static int aeq_init (snd_pcm_extplug_t * plug) {
    AEQState * s = plug->private_data;
+   if (s->initted) /* Fix me: Why does this happen? */
+      return 0;
    if (plug->channels > MAX_CHANS)
       return -EINVAL;
    set_format (s, plug->channels, plug->rate);
@@ -244,6 +247,7 @@ static int aeq_init (snd_pcm_extplug_t * plug) {
    float bands[BANDS];
    read_config (s->path, & on, bands);
    set_bands (s, on, bands);
+   s->initted = 1;
    return 0;
 }
 
