@@ -30,7 +30,10 @@
 #include <alsa/asoundlib.h>
 #include <alsa/pcm_external.h>
 
-#define ERROR(...) fprintf (stderr, "AEq: " __VA_ARGS__)
+#define ERROR(p, ...) do { \
+ fprintf (stderr, "AEq[%p]: ", p); \
+ fprintf (stderr, __VA_ARGS__); \
+} while (0)
 
 #define BANDS 10
 #define MAX_CHANS 10
@@ -112,12 +115,13 @@ static void equalize (AEQState * s, int chan, const float * in, int in_step,
    }
 }
 
-static void read_config (const char * path, int * on, float bands[BANDS]) {
+static void read_config (snd_pcm_extplug_t * p, const char * path, int * on,
+ float bands[BANDS]) {
    * on = 0;
    memset (bands, 0, sizeof bands);
    FILE * file = fopen (path, "r");
    if (! file) {
-      ERROR ("Failed to open %s for reading: %s\n", path, strerror (errno));
+      ERROR (p, "Failed to open %s for reading: %s\n", path, strerror (errno));
       return;
    }
    char line[256];
@@ -130,14 +134,15 @@ static void read_config (const char * path, int * on, float bands[BANDS]) {
    fclose (file);
    return;
 ERR:
-   ERROR ("Syntax error in %s.\n", path);
+   ERROR (p, "Syntax error in %s.\n", path);
    fclose (file);
 }
 
-static void write_config (const char * path, int on, const float bands[BANDS]) {
+static void write_config (snd_pcm_extplug_t * p, const char * path, int on,
+ const float bands[BANDS]) {
    FILE * file = fopen (path, "w");
    if (! file) {
-      ERROR ("Failed to open %s for writing: %s\n", path, strerror (errno));
+      ERROR (p, "Failed to open %s for writing: %s\n", path, strerror (errno));
       return;
    }
    fprintf (file, "%d # On/off\n", on);
@@ -146,48 +151,48 @@ static void write_config (const char * path, int on, const float bands[BANDS]) {
    fclose (file);
 }
 
-static int folder_init (const char * path) {
+static int folder_init (snd_pcm_extplug_t * p, const char * path) {
    if (! mkdir (path, S_IRUSR | S_IXUSR | S_IWUSR | S_IRGRP | S_IXGRP) || errno
     == EEXIST)
       return 1;
-   ERROR ("Failed to create %s: %s.\n", path, strerror (errno));
+   ERROR (p, "Failed to create %s: %s.\n", path, strerror (errno));
    return 0;
 }
 
-static int file_exists (const char * path) {
+static int file_exists (snd_pcm_extplug_t * p, const char * path) {
    struct stat s;
    if (! lstat (path, & s))
       return 1;
    if (errno == ENOENT)
       return 0;
-   ERROR ("Failed to stat %s: %s.\n", path, strerror (errno));
+   ERROR (p, "Failed to stat %s: %s.\n", path, strerror (errno));
    return 0;
 }
 
-static int config_init (char * path, int psize) {
+static int config_init (snd_pcm_extplug_t * p, char * path, int psize) {
    snprintf (path, psize, "%s/.config", getenv ("HOME"));
-   if (! folder_init (path))
+   if (! folder_init (p, path))
       return 0;
    snprintf (path + strlen (path), psize - strlen (path), "/aeq");
-   if (! folder_init (path))
+   if (! folder_init (p, path))
       return 0;
    snprintf (path + strlen (path), psize - strlen (path), "/config");
-   if (! file_exists (path)) {
+   if (! file_exists (p, path)) {
       float bands[BANDS];
       memset (bands, 0, sizeof bands);
-      write_config (path, 0, bands);
+      write_config (p, path, 0, bands);
    }
    return 1;
 }
 
-static int notify_new (const char * path) {
+static int notify_new (snd_pcm_extplug_t * p, const char * path) {
    int n = inotify_init1 (IN_CLOEXEC | IN_NONBLOCK);
    if (n < 0) {
-      ERROR ("Failed to start inotify: %s.\n", strerror (errno));
+      ERROR (p, "Failed to start inotify: %s.\n", strerror (errno));
       return -1;
    }
    if (inotify_add_watch (n, path, IN_CLOSE_WRITE) < 0) {
-      ERROR ("Failed to set inotify watch on %s: %s.\n", path, strerror (errno));
+      ERROR (p, "Failed to set watch on %s: %s.\n", path, strerror (errno));
       close (n);
       return -1;
    }
@@ -205,15 +210,19 @@ static int notify_changed (int n) {
    return (readed > 0);
 }
 
-static snd_pcm_sframes_t aeq_transfer (snd_pcm_extplug_t * plug,
+static snd_pcm_sframes_t aeq_transfer (snd_pcm_extplug_t * p,
  const snd_pcm_channel_area_t * out_areas, snd_pcm_uframes_t out_off,
  const snd_pcm_channel_area_t * in_areas, snd_pcm_uframes_t in_off,
  snd_pcm_uframes_t frames) {
-   AEQState * s = plug->private_data;
+   AEQState * s = p->private_data;
+   if (! s->initted) {
+      ERROR (p, "Not initialized.\n");
+      return 0;
+   }
    if (notify_changed (s->notify)) {
       int on;
       float bands[BANDS];
-      read_config (s->path, & on, bands);
+      read_config (p, s->path, & on, bands);
       set_bands (s, on, bands);
    }
    if (s->on) {
@@ -232,30 +241,46 @@ static snd_pcm_sframes_t aeq_transfer (snd_pcm_extplug_t * plug,
    return frames;
 }
 
-static int aeq_init (snd_pcm_extplug_t * plug) {
-   AEQState * s = plug->private_data;
-   if (s->initted) /* Fix me: Why does this happen? */
+static void aeq_free (snd_pcm_extplug_t * p) {
+   AEQState * s = p->private_data;
+   memset (s, 0, sizeof (AEQState));
+   free (s);
+   memset (p, 0, sizeof (snd_pcm_extplug_t));
+   free (p);
+}
+
+static int aeq_init (snd_pcm_extplug_t * p) {
+   AEQState * s = p->private_data;
+   if (s->initted) {
+      ERROR (p, "Already initialized.\n");
       return 0;
-   if (plug->channels > MAX_CHANS)
+   }
+   if (p->channels > MAX_CHANS) {
+      ERROR (p, "Too many channels.\n");
+      memset (s, 0, sizeof (AEQState));
       return -EINVAL;
-   set_format (s, plug->channels, plug->rate);
-   if (! config_init (s->path, sizeof s->path))
+   }
+   set_format (s, p->channels, p->rate);
+   if (! config_init (p, s->path, sizeof s->path) || (s->notify = notify_new (p,
+    s->path)) < 0) {
+      memset (s, 0, sizeof (AEQState));
       return -EIO;
-   if ((s->notify = notify_new (s->path)) < 0)
-      return -EIO;
+   }
    int on;
    float bands[BANDS];
-   read_config (s->path, & on, bands);
+   read_config (p, s->path, & on, bands);
    set_bands (s, on, bands);
    s->initted = 1;
    return 0;
 }
 
-static int aeq_close (snd_pcm_extplug_t * plug) {
-   AEQState * s = plug->private_data;
-   close (s->notify);
-   free (s);
-   free (plug);
+static int aeq_close (snd_pcm_extplug_t * p) {
+   AEQState * s = p->private_data;
+   if (s->initted)
+      close (s->notify);
+   else
+      ERROR (p, "Not initialized.\n");
+   aeq_free (p);
    return 0;
 }
 
@@ -274,43 +299,42 @@ static snd_config_t * get_slave (snd_config_t * self) {
       if (! strcmp (id, "slave"))
          return n;
    }
-   ERROR ("No slave PCM.\n");
+   ERROR (NULL, "No slave PCM.\n");
    return NULL;
 }
 
 static snd_pcm_extplug_t * aeq_new (void) {
-   snd_pcm_extplug_t * plug = calloc (1, sizeof (snd_pcm_extplug_t));
-   if (! plug)
+   snd_pcm_extplug_t * p = calloc (1, sizeof (snd_pcm_extplug_t));
+   if (! p)
       return NULL;
    AEQState * s = calloc (1, sizeof (AEQState));
    if (! s) {
-      free (plug);
+      free (p);
       return NULL;
    }
-   plug->version = SND_PCM_EXTPLUG_VERSION;
-   plug->name = "AEq Equalizer";
-   plug->callback = & aeq_callback;
-   plug->private_data = s;
-   return plug;
+   p->version = SND_PCM_EXTPLUG_VERSION;
+   p->name = "AEq Equalizer";
+   p->callback = & aeq_callback;
+   p->private_data = s;
+   return p;
 }
 
 SND_PCM_PLUGIN_DEFINE_FUNC (aeq) {
    snd_config_t * slave = get_slave (conf);
    if (! slave)
       return -EINVAL;
-   snd_pcm_extplug_t * plug = aeq_new ();
-   if (! plug)
+   snd_pcm_extplug_t * p = aeq_new ();
+   if (! p)
       return -ENOMEM;
-   int err = snd_pcm_extplug_create (plug, name, root, slave, stream, mode);
+   int err = snd_pcm_extplug_create (p, name, root, slave, stream, mode);
    if (err < 0) {
-      aeq_close (plug);
+      aeq_free (p);
       return err;
    }
-   snd_pcm_extplug_set_param (plug, SND_PCM_EXTPLUG_HW_FORMAT,
+   snd_pcm_extplug_set_param (p, SND_PCM_EXTPLUG_HW_FORMAT, SND_PCM_FORMAT_FLOAT);
+   snd_pcm_extplug_set_slave_param (p, SND_PCM_EXTPLUG_HW_FORMAT,
     SND_PCM_FORMAT_FLOAT);
-   snd_pcm_extplug_set_slave_param (plug, SND_PCM_EXTPLUG_HW_FORMAT,
-    SND_PCM_FORMAT_FLOAT);
-   * pcmp = plug->pcm;
+   * pcmp = p->pcm;
    return 0;
 }
 
