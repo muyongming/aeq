@@ -125,16 +125,16 @@ static void read_config (snd_pcm_extplug_t * p, const char * path, int * on,
       return;
    }
    char line[256];
-   if (! fgets (line, sizeof line, file) || ! sscanf (line, "%d", on))
-      goto ERR;
+   if (! fgets (line, sizeof line, file) || ! sscanf (line, "%d", on)) {
+ERR:
+      ERROR (p, "Syntax error in %s.\n", path);
+      fclose (file);
+      return;
+   }
    for (int k = 0; k < BANDS; k ++) {
       if (! fgets (line, sizeof line, file) || ! sscanf (line, "%f", bands + k))
          goto ERR;
    }
-   fclose (file);
-   return;
-ERR:
-   ERROR (p, "Syntax error in %s.\n", path);
    fclose (file);
 }
 
@@ -251,13 +251,10 @@ static void aeq_free (snd_pcm_extplug_t * p) {
 
 static int aeq_init (snd_pcm_extplug_t * p) {
    AEQState * s = p->private_data;
-   if (s->initted) {
-      ERROR (p, "Already initialized.\n");
+   if (s->initted)
       return 0;
-   }
    if (p->channels > MAX_CHANS) {
       ERROR (p, "Too many channels.\n");
-      memset (s, 0, sizeof (AEQState));
       return -EINVAL;
    }
    set_format (s, p->channels, p->rate);
@@ -278,8 +275,6 @@ static int aeq_close (snd_pcm_extplug_t * p) {
    AEQState * s = p->private_data;
    if (s->initted)
       close (s->notify);
-   else
-      ERROR (p, "Not initialized.\n");
    aeq_free (p);
    return 0;
 }
