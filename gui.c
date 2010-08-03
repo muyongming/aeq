@@ -29,8 +29,21 @@ static int on;
 static float bands[BANDS];
 static GtkWidget * toggle;
 static GtkWidget * sliders[BANDS];
+static int toggle_sig;
+static int slider_sigs[BANDS];
 
-static void to_disk (void) {
+static void update (void) {
+   g_signal_handler_block (toggle, toggle_sig);
+   gtk_toggle_button_set_active ((GtkToggleButton *) toggle, on);
+   g_signal_handler_unblock (toggle, toggle_sig);
+   for (int i = 0; i < BANDS; i ++) {
+      g_signal_handler_block (sliders[i], slider_sigs[i]);
+      gtk_range_set_value ((GtkRange *) sliders[i], -bands[i]);
+      g_signal_handler_unblock (sliders[i], slider_sigs[i]);
+   }
+}
+
+static void changed (void) {
    on = gtk_toggle_button_get_active ((GtkToggleButton *) toggle);
    for (int i = 0; i < BANDS; i ++)
       bands[i] = -(float) gtk_range_get_value ((GtkRange *) sliders[i]);
@@ -39,8 +52,7 @@ static void to_disk (void) {
 
 static GtkWidget * create_toggle (void) {
    toggle = gtk_check_button_new_with_mnemonic ("_Enable");
-   gtk_toggle_button_set_active ((GtkToggleButton *) toggle, on);
-   g_signal_connect (toggle, "toggled", (GCallback) to_disk, NULL);
+   toggle_sig = g_signal_connect (toggle, "toggled", (GCallback) changed, NULL);
    return toggle;
 }
 
@@ -57,9 +69,9 @@ static GtkWidget * create_slider (int i) {
    gtk_scale_set_draw_value ((GtkScale *) sliders[i], 1);
    gtk_scale_set_value_pos ((GtkScale *) sliders[i], GTK_POS_BOTTOM);
    gtk_widget_set_size_request (sliders[i], -1, 144);
-   gtk_range_set_value ((GtkRange *) sliders[i], -bands[i]);
    g_signal_connect (sliders[i], "format-value", (GCallback) format_value, NULL);
-   g_signal_connect (sliders[i], "value-changed", (GCallback) to_disk, NULL);
+   slider_sigs[i] = g_signal_connect (sliders[i], "value-changed", (GCallback)
+    changed, NULL);
    gtk_box_pack_start ((GtkBox *) vbox, sliders[i], 0, 0, 0);
    return vbox;
 }
@@ -120,6 +132,7 @@ static void create_window (void) {
    for (int i = 0; i < BANDS; i ++)
       gtk_box_pack_start ((GtkBox *) hbox, create_slider (i), 0, 0, 0);
    gtk_box_pack_start ((GtkBox *) vbox, create_buttons (), 0, 0, 0);
+   update ();
    gtk_widget_show_all (win);
 }
 
