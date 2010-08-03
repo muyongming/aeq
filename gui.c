@@ -77,6 +77,16 @@ static GtkWidget * create_slider (int i) {
 }
 
 static void open_preset (GtkDialog * win, gint resp) {
+   if (resp != GTK_RESPONSE_OK)
+      return;
+   char * name = gtk_file_chooser_get_filename ((GtkFileChooser *) win);
+   if (! name)
+      return;
+   read_config (name, & on, bands);
+   g_free (name);
+   gtk_widget_destroy ((GtkWidget *) win);
+   update ();
+   changed ();
 }
 
 static void open_window (void) {
