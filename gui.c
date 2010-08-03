@@ -76,6 +76,14 @@ static void open_window (void) {
 }
 
 static void save_preset (GtkDialog * win, gint resp) {
+   if (resp != GTK_RESPONSE_OK)
+      return;
+   char * name = gtk_file_chooser_get_filename ((GtkFileChooser *) win);
+   if (! name)
+      return;
+   write_config (name, on, bands);
+   g_free (name);
+   gtk_widget_destroy ((GtkWidget *) win);
 }
 
 static void save_window (void) {
