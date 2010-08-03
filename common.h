@@ -89,7 +89,7 @@ static int config_init (char * path, char * pre, int size) {
       return 0;
    if (pre) {
       snprintf (pre, size, "%s/presets", path);
-      if (! folder_init (path))
+      if (! folder_init (pre))
          return 0;
    }
    snprintf (path + strlen (path), size - strlen (path), "/config");

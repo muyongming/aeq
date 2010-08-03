@@ -24,6 +24,7 @@
 #define STEP 1
 
 static char config_path[PATH_MAX];
+static char preset_path[sizeof config_path];
 static int on;
 static float bands[BANDS];
 
@@ -64,6 +65,40 @@ static GtkWidget * create_slider (const gchar * name, float * val) {
    return vbox;
 }
 
+static void open_preset (GtkDialog * win, gint resp) {
+}
+
+static void open_window (void) {
+   GtkWidget * win = gtk_file_chooser_dialog_new ("Open Preset", NULL,
+    GTK_FILE_CHOOSER_ACTION_OPEN, GTK_STOCK_OPEN, GTK_RESPONSE_OK, NULL);
+   gtk_file_chooser_set_current_folder ((GtkFileChooser *) win, preset_path);
+   g_signal_connect (win, "response", (GCallback) open_preset, NULL);
+   gtk_widget_show (win);
+}
+
+static void save_preset (GtkDialog * win, gint resp) {
+}
+
+static void save_window (void) {
+   GtkWidget * win = gtk_file_chooser_dialog_new ("Save Preset", NULL,
+    GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_SAVE, GTK_RESPONSE_OK, NULL);
+   gtk_file_chooser_set_current_folder ((GtkFileChooser *) win, preset_path);
+   g_signal_connect (win, "response", (GCallback) save_preset, NULL);
+   gtk_widget_show (win);
+}
+
+static GtkWidget * create_buttons (void) {
+   GtkWidget * hbox = gtk_hbox_new (0, 6);
+   gtk_box_pack_start ((GtkBox *) hbox, gtk_label_new ("Presets:"), 0, 0, 0);
+   GtkWidget * save = gtk_button_new_from_stock (GTK_STOCK_SAVE);
+   g_signal_connect (save, "clicked", (GCallback) save_window, NULL);
+   gtk_box_pack_end ((GtkBox *) hbox, save, 0, 0, 0);
+   GtkWidget * open = gtk_button_new_from_stock (GTK_STOCK_OPEN);
+   g_signal_connect (open, "clicked", (GCallback) open_window, NULL);
+   gtk_box_pack_end ((GtkBox *) hbox, open, 0, 0, 0);
+   return hbox;
+}
+
 static void create_window (void) {
    GtkWidget * win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
    gtk_window_set_title ((GtkWindow *) win, "AEq Equalizer");
@@ -78,6 +113,7 @@ static void create_window (void) {
    for (int i = 0; i < BANDS; i ++)
       gtk_box_pack_start ((GtkBox *) hbox, create_slider (labels[i], bands + i),
        0, 0, 0);
+   gtk_box_pack_start ((GtkBox *) vbox, create_buttons (), 0, 0, 0);
    gtk_widget_show_all (win);
 }
 
@@ -91,7 +127,7 @@ static void error_main (void) {
 
 int main (void) {
    gtk_init (NULL, NULL);
-   if (! config_init (config_path, NULL, sizeof config_path)) {
+   if (! config_init (config_path, preset_path, sizeof config_path)) {
       error_main ();
       return EXIT_FAILURE;
    }
