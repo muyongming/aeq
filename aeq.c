@@ -16,28 +16,21 @@
 // You should have received a copy of the GNU General Public License along with
 // this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include <errno.h>
-#include <fcntl.h>
 #include <limits.h>
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/inotify.h>
-#include <sys/stat.h>
 #include <unistd.h>
+
+#include <sys/inotify.h>
 
 #include <alsa/asoundlib.h>
 #include <alsa/pcm_external.h>
 
-#define ERROR(p, ...) do { \
- fprintf (stderr, "AEq[%p]: ", p); \
- fprintf (stderr, __VA_ARGS__); \
-} while (0)
+#include "common.h"
 
-#define BANDS 10
 #define MAX_CHANS 10
-
+#define PI 3.141593
 // Q value for band-pass filters 1.2247 = (3/2)^(1/2)
 // Gives 4 dB suppression at Fc*2 and Fc/2
 #define Q 1.224745
@@ -55,14 +48,9 @@ typedef struct {
    int K; // Number of used eq bands
 } AEQState;
 
-static const float freqs[BANDS] = {31.25, 62.5, 125, 250, 500, 1000, 2000, 4000,
- 8000, 16000};
-static const char * const labels[BANDS] = {"31.25 Hz", "62.5 Hz", "125 Hz",
- "250 Hz", "500 Hz", "1 kHz", "2 kHz", "4 kHz", "8 kHz", "16 kHz"};
-
 // 2nd order band-pass filter design
 static void bp2 (float * a, float * b, float fc, float q) {
-   float th = 2 * M_PI * fc;
+   float th = 2 * PI * fc;
    float C = (1 - tanf (th * q / 2)) / (1 + tanf (th * q / 2));
    a[0] = (1 + C) * cosf (th);
    a[1] = -C;
@@ -115,84 +103,14 @@ static void equalize (AEQState * s, int chan, const float * in, int in_step,
    }
 }
 
-static void read_config (snd_pcm_extplug_t * p, const char * path, int * on,
- float bands[BANDS]) {
-   * on = 0;
-   memset (bands, 0, sizeof bands);
-   FILE * file = fopen (path, "r");
-   if (! file) {
-      ERROR (p, "Failed to open %s for reading: %s\n", path, strerror (errno));
-      return;
-   }
-   char line[256];
-   if (! fgets (line, sizeof line, file) || ! sscanf (line, "%d", on)) {
-ERR:
-      ERROR (p, "Syntax error in %s.\n", path);
-      fclose (file);
-      return;
-   }
-   for (int k = 0; k < BANDS; k ++) {
-      if (! fgets (line, sizeof line, file) || ! sscanf (line, "%f", bands + k))
-         goto ERR;
-   }
-   fclose (file);
-}
-
-static void write_config (snd_pcm_extplug_t * p, const char * path, int on,
- const float bands[BANDS]) {
-   FILE * file = fopen (path, "w");
-   if (! file) {
-      ERROR (p, "Failed to open %s for writing: %s\n", path, strerror (errno));
-      return;
-   }
-   fprintf (file, "%d # On/off\n", on);
-   for (int k = 0; k < BANDS; k ++)
-      fprintf (file, "%.1f # %s\n", bands[k], labels[k]);
-   fclose (file);
-}
-
-static int folder_init (snd_pcm_extplug_t * p, const char * path) {
-   if (! mkdir (path, S_IRUSR | S_IXUSR | S_IWUSR | S_IRGRP | S_IXGRP) || errno
-    == EEXIST)
-      return 1;
-   ERROR (p, "Failed to create %s: %s.\n", path, strerror (errno));
-   return 0;
-}
-
-static int file_exists (snd_pcm_extplug_t * p, const char * path) {
-   struct stat s;
-   if (! lstat (path, & s))
-      return 1;
-   if (errno == ENOENT)
-      return 0;
-   ERROR (p, "Failed to stat %s: %s.\n", path, strerror (errno));
-   return 0;
-}
-
-static int config_init (snd_pcm_extplug_t * p, char * path, int psize) {
-   snprintf (path, psize, "%s/.config", getenv ("HOME"));
-   if (! folder_init (p, path))
-      return 0;
-   snprintf (path + strlen (path), psize - strlen (path), "/aeq");
-   if (! folder_init (p, path))
-      return 0;
-   snprintf (path + strlen (path), psize - strlen (path), "/config");
-   if (! file_exists (p, path)) {
-      float bands[BANDS];
-      memset (bands, 0, sizeof bands);
-      write_config (p, path, 0, bands);
-   }
-   return 1;
-}
-
-static int notify_new (snd_pcm_extplug_t * p, const char * path) {
+static int notify_new (const char * path) {
    int n = inotify_init1 (IN_CLOEXEC | IN_NONBLOCK);
    if (n < 0) {
-      ERROR (p, "Failed to start inotify: %s.\n", strerror (errno));
+      FAIL ("start", "inotify");
       return -1;
    }
    if (inotify_add_watch (n, path, IN_CLOSE_WRITE) < 0) {
-      ERROR (p, "Failed to set watch on %s: %s.\n", path, strerror (errno));
+      FAIL ("set inotify watch on", path);
       close (n);
       return -1;
    }
@@ -204,7 +122,7 @@ static int notify_changed (int n) {
    int readed = read (n, & e, sizeof e);
    if (readed < 0) {
       if (errno != EAGAIN)
-         ERROR ("Failed to read from inotify watch: %s.\n", strerror (errno));
+         FAIL ("read from", "inotify watch");
       return 0;
    }
    return (readed > 0);
@@ -216,13 +134,13 @@ static snd_pcm_sframes_t aeq_transfer (snd_pcm_extplug_t * p,
  snd_pcm_uframes_t frames) {
    AEQState * s = p->private_data;
    if (! s->initted) {
-      ERROR (p, "Not initialized.\n");
+      ERROR ("Not initialized.\n");
       return 0;
    }
    if (notify_changed (s->notify)) {
       int on;
       float bands[BANDS];
-      read_config (p, s->path, & on, bands);
+      read_config (s->path, & on, bands);
       set_bands (s, on, bands);
    }
    if (s->on) {
@@ -254,18 +172,18 @@ static int aeq_init (snd_pcm_extplug_t * p) {
    if (s->initted)
       return 0;
    if (p->channels > MAX_CHANS) {
-      ERROR (p, "Too many channels.\n");
+      ERROR ("Too many channels.\n");
       return -EINVAL;
    }
    set_format (s, p->channels, p->rate);
-   if (! config_init (p, s->path, sizeof s->path) || (s->notify = notify_new (p,
-    s->path)) < 0) {
+   if (! config_init (s->path, NULL, sizeof s->path) || (s->notify = notify_new
+    (s->path)) < 0) {
       memset (s, 0, sizeof (AEQState));
       return -EIO;
    }
    int on;
    float bands[BANDS];
-   read_config (p, s->path, & on, bands);
+   read_config (s->path, & on, bands);
    set_bands (s, on, bands);
    s->initted = 1;
    return 0;
@@ -294,7 +212,7 @@ static snd_config_t * get_slave (snd_config_t * self) {
       if (! strcmp (id, "slave"))
          return n;
    }
-   ERROR (NULL, "No slave PCM.\n");
+   ERROR ("No slave PCM.\n");
    return NULL;
 }
 
