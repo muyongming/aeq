@@ -57,7 +57,7 @@ static GtkWidget * create_slider (const gchar * name, float * val) {
    gtk_scale_set_draw_value ((GtkScale *) slid, 1);
    gtk_scale_set_value_pos ((GtkScale *) slid, GTK_POS_BOTTOM);
    gtk_widget_set_size_request (slid, -1, 144);
-   gtk_range_set_value ((GtkRange *) slid, * val);
+   gtk_range_set_value ((GtkRange *) slid, -* val);
    g_signal_connect (slid, "format-value", (GCallback) format_value, NULL);
    g_signal_connect (slid, "value-changed", (GCallback) changed, val);
    gtk_box_pack_start ((GtkBox *) vbox, slid, 0, 0, 0);
