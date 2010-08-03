@@ -27,41 +27,40 @@ static char config_path[PATH_MAX];
 static char preset_path[sizeof config_path];
 static int on;
 static float bands[BANDS];
+static GtkWidget * toggle;
+static GtkWidget * sliders[BANDS];
 
-static void on_off (GtkToggleButton * tog) {
-   on = gtk_toggle_button_get_active (tog);
+static void to_disk (void) {
+   on = gtk_toggle_button_get_active ((GtkToggleButton *) toggle);
+   for (int i = 0; i < BANDS; i ++)
+      bands[i] = -(float) gtk_range_get_value ((GtkRange *) sliders[i]);
    write_config (config_path, on, bands);
 }
 
-static GtkWidget * create_switch (void) {
-   GtkWidget * tog = gtk_check_button_new_with_mnemonic ("_Enable");
-   gtk_toggle_button_set_active ((GtkToggleButton *) tog, on);
-   g_signal_connect (tog, "toggled", (GCallback) on_off, NULL);
-   return tog;
+static GtkWidget * create_toggle (void) {
+   toggle = gtk_check_button_new_with_mnemonic ("_Enable");
+   gtk_toggle_button_set_active ((GtkToggleButton *) toggle, on);
+   g_signal_connect (toggle, "toggled", (GCallback) to_disk, NULL);
+   return toggle;
 }
 
 static char * format_value (GtkScale * s __attribute ((unused)), double val) {
    return g_strdup_printf ("%d", -(int) val);
 }
 
-static void changed (GtkRange * slid, float * val) {
-   * val = -(float) gtk_range_get_value (slid);
-   write_config (config_path, on, bands);
-}
-
-static GtkWidget * create_slider (const gchar * name, float * val) {
+static GtkWidget * create_slider (int i) {
    GtkWidget * vbox = gtk_vbox_new (0, 6);
-   GtkWidget * label = gtk_label_new (name);
+   GtkWidget * label = gtk_label_new (labels[i]);
    gtk_label_set_angle ((GtkLabel *) label, 90);
    gtk_box_pack_start ((GtkBox *) vbox, label, 1, 0, 0);
-   GtkWidget * slid = gtk_vscale_new_with_range (-MAX_GAIN, MAX_GAIN, STEP);
-   gtk_scale_set_draw_value ((GtkScale *) slid, 1);
-   gtk_scale_set_value_pos ((GtkScale *) slid, GTK_POS_BOTTOM);
-   gtk_widget_set_size_request (slid, -1, 144);
-   gtk_range_set_value ((GtkRange *) slid, -* val);
-   g_signal_connect (slid, "format-value", (GCallback) format_value, NULL);
-   g_signal_connect (slid, "value-changed", (GCallback) changed, val);
-   gtk_box_pack_start ((GtkBox *) vbox, slid, 0, 0, 0);
+   sliders[i] = gtk_vscale_new_with_range (-MAX_GAIN, MAX_GAIN, STEP);
+   gtk_scale_set_draw_value ((GtkScale *) sliders[i], 1);
+   gtk_scale_set_value_pos ((GtkScale *) sliders[i], GTK_POS_BOTTOM);
+   gtk_widget_set_size_request (sliders[i], -1, 144);
+   gtk_range_set_value ((GtkRange *) sliders[i], -bands[i]);
+   g_signal_connect (sliders[i], "format-value", (GCallback) format_value, NULL);
+   g_signal_connect (sliders[i], "value-changed", (GCallback) to_disk, NULL);
+   gtk_box_pack_start ((GtkBox *) vbox, sliders[i], 0, 0, 0);
    return vbox;
 }
 
@@ -107,12 +106,11 @@ static void create_window (void) {
    g_signal_connect (win, "destroy", (GCallback) gtk_main_quit, NULL);
    GtkWidget * vbox = gtk_vbox_new (0, 6);
    gtk_container_add ((GtkContainer *) win, vbox);
-   gtk_box_pack_start ((GtkBox *) vbox, create_switch (), 0, 0, 0);
+   gtk_box_pack_start ((GtkBox *) vbox, create_toggle (), 0, 0, 0);
    GtkWidget * hbox = gtk_hbox_new (0, 6);
    gtk_box_pack_start ((GtkBox *) vbox, hbox, 0, 0, 0);
    for (int i = 0; i < BANDS; i ++)
-      gtk_box_pack_start ((GtkBox *) hbox, create_slider (labels[i], bands + i),
-       0, 0, 0);
+      gtk_box_pack_start ((GtkBox *) hbox, create_slider (i), 0, 0, 0);
    gtk_box_pack_start ((GtkBox *) vbox, create_buttons (), 0, 0, 0);
    gtk_widget_show_all (win);
 }
