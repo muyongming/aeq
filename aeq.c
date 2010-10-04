@@ -18,6 +18,7 @@
 
 #include <limits.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -79,11 +80,11 @@ static void set_bands (AEQState * s, int on, const float bands[BANDS]) {
    }
 }
 
-static void equalize (AEQState * s, int chan, const float * in, int in_step,
- float * out, int out_step, int samps) {
+static void equalize (AEQState * s, int chan, const int16_t * in, int in_step,
+ int16_t * out, int out_step, int samps) {
    // Gain factor
    const float * g = s->gv[chan];
-   const float * end = in + in_step * samps;
+   const int16_t * end = in + in_step * samps;
    while (in < end) {
       float f = * in;
       in += in_step;
@@ -98,7 +99,7 @@ static void equalize (AEQState * s, int chan, const float * in, int in_step,
          wq[1] = wq[0];
          wq[0] = w;
       }
-      * out = f;
+      * out = (f > 32767) ? 32767 : (f < -32767) ? -32767 : f;
       out += out_step;
    }
 }
@@ -145,17 +146,17 @@ static snd_pcm_sframes_t aeq_transfer (snd_pcm_extplug_t * p,
    }
    if (s->on) {
       for (int i = 0; i < s->chans; i ++) {
-         const float * in = (float *) in_areas[i].addr + (in_areas[i].first +
-          in_areas[i].step * in_off) / (8 * sizeof (float));
-         int in_step = in_areas[i].step / (8 * sizeof (float));
-         float * out = (float *) out_areas[i].addr + (out_areas[i].first +
-          out_areas[i].step * out_off) / (8 * sizeof (float));
-         int out_step = out_areas[i].step / (8 * sizeof (float));
+         const int16_t * in = (int16_t *) in_areas[i].addr + (in_areas[i].first
+          + in_areas[i].step * in_off) / 16;
+         int in_step = in_areas[i].step / 16;
+         int16_t * out = (int16_t *) out_areas[i].addr + (out_areas[i].first +
+          out_areas[i].step * out_off) / 16;
+         int out_step = out_areas[i].step / 16;
          equalize (s, i, in, in_step, out, out_step, frames);
       }
    } else
       snd_pcm_areas_copy (out_areas, out_off, in_areas, in_off, s->chans,
-       frames, SND_PCM_FORMAT_FLOAT);
+       frames, SND_PCM_FORMAT_S16);
    return frames;
 }
 
@@ -244,9 +245,10 @@ SND_PCM_PLUGIN_DEFINE_FUNC (aeq) {
       aeq_free (p);
       return err;
    }
-   snd_pcm_extplug_set_param (p, SND_PCM_EXTPLUG_HW_FORMAT, SND_PCM_FORMAT_FLOAT);
+   snd_pcm_extplug_set_param (p, SND_PCM_EXTPLUG_HW_FORMAT,
+    SND_PCM_FORMAT_S16);
    snd_pcm_extplug_set_slave_param (p, SND_PCM_EXTPLUG_HW_FORMAT,
-    SND_PCM_FORMAT_FLOAT);
+    SND_PCM_FORMAT_S16);
    * pcmp = p->pcm;
    return 0;
 }
