@@ -1,5 +1,5 @@
 // AEq -- Equalizer plugin for ALSA
-// Copyright 2010 John Lindgren <john.lindgren@tds.net>
+// Copyright 2010-2011 John Lindgren <john.lindgren@tds.net>
 //
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -18,6 +18,7 @@
 
 #include "common.h"
 
+#include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 
 #define MAX_GAIN 10
@@ -128,11 +129,20 @@ static GtkWidget * create_buttons (void) {
    return hbox;
 }
 
+static int keypress (GtkWidget * widget, GdkEventKey * event) {
+   if (event->keyval == GDK_Escape) {
+      gtk_widget_destroy (widget);
+      return 1;
+   }
+   return 0;
+}
+
 static void create_window (void) {
    GtkWidget * win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
    gtk_window_set_title ((GtkWindow *) win, "AEq Equalizer");
    gtk_window_set_resizable ((GtkWindow *) win, 0);
    gtk_container_set_border_width ((GtkContainer *) win, 6);
+   g_signal_connect (win, "key-press-event", (GCallback) keypress, NULL);
    g_signal_connect (win, "destroy", (GCallback) gtk_main_quit, NULL);
    GtkWidget * vbox = gtk_vbox_new (0, 6);
    gtk_container_add ((GtkContainer *) win, vbox);
