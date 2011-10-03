@@ -18,7 +18,7 @@
 
 #include "common.h"
 
-#include <gdk/gdkkeysyms.h>
+#include <gdk/gdkkeysyms-compat.h>
 #include <gtk/gtk.h>
 
 #define MAX_GAIN 10
