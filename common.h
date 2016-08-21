@@ -30,7 +30,7 @@ static const char * const labels[BANDS] = {"31.25 Hz", "62.5 Hz", "125 Hz",
 
 static void read_config (const char * path, int * on, float bands[BANDS]) {
    * on = 0;
-   memset (bands, 0, sizeof bands);
+   memset (bands, 0, BANDS * sizeof bands[0]);
    FILE * file = fopen (path, "r");
    if (! file) {
       FAIL ("read from", path);
@@ -63,8 +63,7 @@ static void write_config (const char * path, int on, const float bands[BANDS]) {
 }
 
 static int folder_init (const char * path) {
-   if (! mkdir (path, S_IRUSR | S_IXUSR | S_IWUSR | S_IRGRP | S_IXGRP) || errno
-    == EEXIST)
+   if (! mkdir (path, S_IRUSR | S_IXUSR | S_IWUSR | S_IRGRP | S_IXGRP) || errno == EEXIST)
       return 1;
    FAIL ("create", path);
    return 0;
