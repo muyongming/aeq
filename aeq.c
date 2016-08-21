@@ -104,19 +104,9 @@ static void equalize (AEQState * s, int chan, const int16_t * in, int in_step,
 }
 
 static int notify_new (const char * path) {
-   int n = inotify_init ();
+   int n = inotify_init1 (IN_CLOEXEC | IN_NONBLOCK);
    if (n < 0) {
       FAIL ("start", "inotify");
-      return -1;
-   }
-   if (fcntl (n, F_SETFD, FD_CLOEXEC) < 0) {
-      FAIL ("set FD_CLOEXEC on", "inotify");
-      close (n);
-      return -1;
-   }
-   if (fcntl (n, F_SETFL, O_NONBLOCK) < 0) {
-      FAIL ("set O_NONBLOCK on", "inotify");
-      close (n);
       return -1;
    }
    if (inotify_add_watch (n, path, IN_CLOSE_WRITE) < 0) {
