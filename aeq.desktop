@@ -1,5 +1,6 @@
 [Desktop Entry]
-Name=Aeq Equalizer
+Name=AEq Equalizer
+Icon=multimedia-volume-control
 Exec=aeq
 Type=Application
 Categories=Settings

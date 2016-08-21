@@ -139,6 +139,7 @@ static int keypress (GtkWidget * widget, GdkEventKey * event) {
 
 static void create_window (void) {
    GtkWidget * win = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+   gtk_window_set_icon_name ((GtkWindow *) win, "multimedia-volume-control");
    gtk_window_set_title ((GtkWindow *) win, "AEq Equalizer");
    gtk_window_set_resizable ((GtkWindow *) win, 0);
    gtk_container_set_border_width ((GtkContainer *) win, 6);
