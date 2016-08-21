@@ -15,6 +15,9 @@
 // implied. In no event shall the authors be liable for any damages arising from
 // the use of this software.
 
+#ifndef AEQ_COMMON_H
+#define AEQ_COMMON_H
+
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -30,3 +33,5 @@ extern const char * const labels[BANDS];
 void read_config (const char * path, int * on, float bands[BANDS]);
 void write_config (const char * path, int on, const float bands[BANDS]);
 int config_init (char * path, char * pre, int size);
+
+#endif // AEQ_COMMON_H

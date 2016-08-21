@@ -100,7 +100,7 @@ static void equalize (AEQState * s, int chan, const int16_t * in, int in_step,
          wq[1] = wq[0];
          wq[0] = w;
       }
-      * out = (f > 32767) ? 32767 : (f < -32767) ? -32767 : f;
+      * out = (f > INT16_MAX) ? INT16_MAX : (f < INT16_MIN) ? INT16_MIN : f;
       out += out_step;
    }
 }
@@ -155,9 +155,10 @@ static snd_pcm_sframes_t aeq_transfer (snd_pcm_extplug_t * p,
          int out_step = out_areas[i].step / 16;
          equalize (s, i, in, in_step, out, out_step, frames);
       }
-   } else
+   } else {
       snd_pcm_areas_copy (out_areas, out_off, in_areas, in_off, s->chans,
        frames, SND_PCM_FORMAT_S16);
+   }
    return frames;
 }
 
@@ -199,9 +200,10 @@ static int aeq_close (snd_pcm_extplug_t * p) {
 }
 
 static const snd_pcm_extplug_callback_t aeq_callback = {
- .transfer = aeq_transfer,
- .init = aeq_init,
- .close = aeq_close};
+   .transfer = aeq_transfer,
+   .init = aeq_init,
+   .close = aeq_close
+};
 
 static snd_config_t * get_slave (snd_config_t * self) {
    snd_config_iterator_t i, next;
