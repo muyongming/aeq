@@ -20,6 +20,7 @@
 
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
+#include <libnotify/notify.h>
 
 #define MAX_GAIN 10
 #define STEP 1
@@ -165,12 +166,21 @@ static void error_main (void) {
    gtk_main ();
 }
 
+static void notify (const char * message) {
+   notify_init ("AEq");
+   NotifyNotification * notification = notify_notification_new (message, NULL, NULL);
+   notify_notification_show (notification, NULL);
+   g_object_unref (notification);
+   notify_uninit ();
+}
+
 static int command_main (const char * command) {
    if (! config_init (config_path, preset_path, sizeof config_path))
       return EXIT_FAILURE;
    if (! strcmp (command, "toggle")) {
       read_config (config_path, & on, bands);
       on = ! on;
+      notify (on ? "Equalizer enabled." : "Equalizer disabled.");
       write_config (config_path, on, bands);
       return 0;
    }
