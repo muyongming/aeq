@@ -31,7 +31,6 @@
 #include "common.h"
 
 #define MAX_CHANS 10
-#define PI 3.141593
 // Q value for band-pass filters 1.2247 = (3/2)^(1/2)
 // Gives 4 dB suppression at Fc*2 and Fc/2
 #define Q 1.224745
@@ -46,13 +45,13 @@ typedef struct {
    float b[BANDS][2]; // B weights
    float wq[MAX_CHANS][BANDS][2]; // Circular buffer for W data
    float gv[MAX_CHANS][BANDS]; // Gain factor for each channel and band
-   int K; // Number of used eq bands
+   int K; // Number of used EQ bands
 } AEQState;
 
 // 2nd order band-pass filter design
-static void bp2 (float * a, float * b, float fc, float q) {
-   float th = 2 * PI * fc;
-   float C = (1 - tanf (th * q / 2)) / (1 + tanf (th * q / 2));
+static void bp2 (float * a, float * b, float fc) {
+   float th = 2 * M_PI * fc;
+   float C = (1 - tanf (th * Q / 2)) / (1 + tanf (th * Q / 2));
    a[0] = (1 + C) * cosf (th);
    a[1] = -C;
    b[0] = (1 - C) / 2;
@@ -64,11 +63,11 @@ static void set_format (AEQState * s, int chans, int rate) {
    s->rate = rate;
    // Calculate number of active filters
    s->K = BANDS;
-   while (freqs[s->K - 1] > (float) rate / 2.2)
+   while (s->K > 0 && freqs[s->K - 1] > (float) rate / (2.005 * Q))
       s->K --;
    // Generate filter taps
    for (int k = 0; k < s->K; k ++)
-      bp2 (s->a[k], s->b[k], freqs[k] / (float) rate, Q);
+      bp2 (s->a[k], s->b[k], freqs[k] / (float) rate);
    memset (& s->wq, 0, sizeof s->wq);
 }
 
@@ -156,11 +155,11 @@ static snd_pcm_sframes_t aeq_transfer (snd_pcm_extplug_t * p,
    }
    if (s->on) {
       for (int i = 0; i < s->chans; i ++) {
-         const int16_t * in = (int16_t *) in_areas[i].addr + (in_areas[i].first
-          + in_areas[i].step * in_off) / 16;
+         const int16_t * in = (int16_t *) in_areas[i].addr +
+          (in_areas[i].first + in_areas[i].step * in_off) / 16;
          int in_step = in_areas[i].step / 16;
-         int16_t * out = (int16_t *) out_areas[i].addr + (out_areas[i].first +
-          out_areas[i].step * out_off) / 16;
+         int16_t * out = (int16_t *) out_areas[i].addr +
+          (out_areas[i].first + out_areas[i].step * out_off) / 16;
          int out_step = out_areas[i].step / 16;
          equalize (s, i, in, in_step, out, out_step, frames);
       }
@@ -187,8 +186,7 @@ static int aeq_init (snd_pcm_extplug_t * p) {
       return -EINVAL;
    }
    set_format (s, p->channels, p->rate);
-   if (! config_init (s->path, NULL, sizeof s->path) || (s->notify = notify_new
-    (s->path)) < 0) {
+   if (! config_init (s->path, NULL, sizeof s->path) || (s->notify = notify_new (s->path)) < 0) {
       memset (s, 0, sizeof (AEQState));
       return -EIO;
    }
@@ -255,10 +253,8 @@ SND_PCM_PLUGIN_DEFINE_FUNC (aeq) {
       aeq_free (p);
       return err;
    }
-   snd_pcm_extplug_set_param (p, SND_PCM_EXTPLUG_HW_FORMAT,
-    SND_PCM_FORMAT_S16);
-   snd_pcm_extplug_set_slave_param (p, SND_PCM_EXTPLUG_HW_FORMAT,
-    SND_PCM_FORMAT_S16);
+   snd_pcm_extplug_set_param (p, SND_PCM_EXTPLUG_HW_FORMAT, SND_PCM_FORMAT_S16);
+   snd_pcm_extplug_set_slave_param (p, SND_PCM_EXTPLUG_HW_FORMAT, SND_PCM_FORMAT_S16);
    * pcmp = p->pcm;
    return 0;
 }
