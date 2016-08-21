@@ -1,5 +1,0 @@
-gcc -c -std=gnu99 -DPIC -Wall -Wextra -g -O2 -fpic `pkg-config --cflags alsa` aeq.c
-gcc -shared `pkg-config --libs alsa` -Wl,-soname -Wl,libasound_module_pcm_aeq.so -o libasound_module_pcm_aeq.so aeq.o
-strip -s libasound_module_pcm_aeq.so
-gcc -std=gnu99 -Wall -Wextra -g -O2 `pkg-config --cflags --libs gtk+-3.0` -o aeq gui.c
-strip -s aeq
