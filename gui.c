@@ -1,5 +1,5 @@
 // AEq -- Equalizer plugin for ALSA
-// Copyright 2010-2011 John Lindgren <john.lindgren@tds.net>
+// Copyright 2010-2016 John Lindgren <john.lindgren@tds.net>
 //
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU General Public License as published by the Free Software
@@ -165,7 +165,22 @@ static void error_main (void) {
    gtk_main ();
 }
 
-int main (void) {
+static int command_main (const char * command) {
+   if (! config_init (config_path, preset_path, sizeof config_path))
+      return EXIT_FAILURE;
+   if (! strcmp (command, "toggle")) {
+      read_config (config_path, & on, bands);
+      on = ! on;
+      write_config (config_path, on, bands);
+      return 0;
+   }
+   ERROR ("Unknown command: %s\n", command);
+   return EXIT_FAILURE;
+}
+
+int main (int argc, char * * argv) {
+   if (argc > 1)
+      return command_main (argv[1]);
    gtk_init (NULL, NULL);
    if (! config_init (config_path, preset_path, sizeof config_path)) {
       error_main ();
