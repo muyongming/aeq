@@ -1,5 +1,5 @@
 // AEq -- Equalizer plugin for ALSA
-// Copyright 2010 John Lindgren <john.lindgren@tds.net>
+// Copyright 2010 John Lindgren <john.lindgren@aol.com>
 //
 // Implementation of a 10 band time domain graphic equalizer using IIR filters
 // Copyright 2001 Anders Johansson <ajh@atri.curtin.edu.au>
