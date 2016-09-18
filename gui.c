@@ -170,7 +170,8 @@ static void error_main (void) {
 
 static void notify (const char * message) {
    notify_init ("AEq");
-   NotifyNotification * notification = notify_notification_new (message, NULL, NULL);
+   NotifyNotification * notification = notify_notification_new (message, NULL,
+    "multimedia-volume-control");
    notify_notification_show (notification, NULL);
    g_object_unref (notification);
    notify_uninit ();
