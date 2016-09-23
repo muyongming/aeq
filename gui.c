@@ -180,9 +180,11 @@ static void notify (const char * message) {
 static int command_main (const char * command) {
    if (! config_init (config_path, preset_path, sizeof config_path))
       return EXIT_FAILURE;
-   if (! strcmp (command, "toggle")) {
+   if (! strcmp (command, "enable") ||
+       ! strcmp (command, "disable") ||
+       ! strcmp (command, "toggle")) {
       read_config (config_path, & on, bands);
-      on = ! on;
+      on = ! strcmp (command, "enable") || (! strcmp (command, "toggle") && ! on);
       notify (on ? "Equalizer enabled." : "Equalizer disabled.");
       write_config (config_path, on, bands);
       return 0;
