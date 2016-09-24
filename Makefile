@@ -18,12 +18,16 @@ install :
 	chmod 0755 /usr/lib/alsa-lib/libasound_module_pcm_aeq.so
 	cp aeq.desktop /usr/share/applications/
 	chmod 0644 /usr/share/applications/aeq.desktop
+	mkdir -p /etc/aeq
+	cp config /etc/aeq/
+	chmod 0666 /etc/aeq/config
 	update-desktop-database
 
 uninstall :
 	rm -f /usr/bin/aeq
 	rm -f /usr/lib/alsa-lib/libasound_module_pcm_aeq.so
 	rm -f /usr/share/applications/aeq.desktop
+	rm -rf /etc/aeq
 	update-desktop-database
 
 clean :

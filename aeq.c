@@ -39,7 +39,6 @@
 
 typedef struct {
    int initted;
-   char path[PATH_MAX];
    int notify;
    int on;
    int chans, rate;
@@ -142,7 +141,7 @@ static snd_pcm_sframes_t aeq_transfer (snd_pcm_extplug_t * p,
    if (notify_changed (s->notify)) {
       int on;
       float bands[BANDS];
-      read_config (s->path, & on, bands);
+      read_config (CONFIG_PATH, & on, bands);
       set_bands (s, on, bands);
    }
    if (s->on) {
@@ -179,13 +178,13 @@ static int aeq_init (snd_pcm_extplug_t * p) {
       return -EINVAL;
    }
    set_format (s, p->channels, p->rate);
-   if (! config_init (s->path, NULL, sizeof s->path) || (s->notify = notify_new (s->path)) < 0) {
+   if ((s->notify = notify_new (CONFIG_PATH)) < 0) {
       memset (s, 0, sizeof (AEQState));
       return -EIO;
    }
    int on;
    float bands[BANDS];
-   read_config (s->path, & on, bands);
+   read_config (CONFIG_PATH, & on, bands);
    set_bands (s, on, bands);
    s->initted = 1;
    return 0;

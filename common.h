@@ -23,6 +23,7 @@
 #include <string.h>
 
 #define BANDS 10
+#define CONFIG_PATH "/etc/aeq/config"
 
 #define ERROR(...) fprintf (stderr, "AEq: " __VA_ARGS__)
 #define FAIL(a, f) ERROR ("Failed to %s %s: %s.\n", a, f, strerror (errno))
@@ -32,6 +33,5 @@ extern const char * const labels[BANDS];
 
 void read_config (const char * path, int * on, float bands[BANDS]);
 void write_config (const char * path, int on, const float bands[BANDS]);
-int config_init (char * path, char * pre, int size);
 
 #endif // AEQ_COMMON_H

@@ -27,8 +27,6 @@
 #define MAX_GAIN 10
 #define STEP 1
 
-static char config_path[PATH_MAX];
-static char preset_path[sizeof config_path];
 static int on;
 static float bands[BANDS];
 static GtkWidget * toggle;
@@ -51,7 +49,7 @@ static void changed (void) {
    on = gtk_toggle_button_get_active ((GtkToggleButton *) toggle);
    for (int i = 0; i < BANDS; i ++)
       bands[i] = -(float) gtk_range_get_value ((GtkRange *) sliders[i]);
-   write_config (config_path, on, bands);
+   write_config (CONFIG_PATH, on, bands);
 }
 
 static GtkWidget * create_toggle (void) {
@@ -96,7 +94,6 @@ static void open_preset (GtkDialog * win, gint resp) {
 static void open_window (void) {
    GtkWidget * win = gtk_file_chooser_dialog_new ("Open Preset", NULL,
     GTK_FILE_CHOOSER_ACTION_OPEN, GTK_STOCK_OPEN, GTK_RESPONSE_OK, NULL);
-   gtk_file_chooser_set_current_folder ((GtkFileChooser *) win, preset_path);
    g_signal_connect (win, "response", (GCallback) open_preset, NULL);
    gtk_widget_show (win);
 }
@@ -115,7 +112,6 @@ static void save_preset (GtkDialog * win, gint resp) {
 static void save_window (void) {
    GtkWidget * win = gtk_file_chooser_dialog_new ("Save Preset", NULL,
     GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_SAVE, GTK_RESPONSE_OK, NULL);
-   gtk_file_chooser_set_current_folder ((GtkFileChooser *) win, preset_path);
    g_signal_connect (win, "response", (GCallback) save_preset, NULL);
    gtk_widget_show (win);
 }
@@ -160,14 +156,6 @@ static void create_window (void) {
    gtk_widget_show_all (win);
 }
 
-static void error_main (void) {
-   GtkWidget * error = gtk_message_dialog_new (NULL, 0, GTK_MESSAGE_ERROR,
-    GTK_BUTTONS_OK, "Failed to read configuration.");
-   g_signal_connect (error, "destroy", (GCallback) gtk_main_quit, NULL);
-   gtk_widget_show (error);
-   gtk_main ();
-}
-
 static void notify (const char * message) {
    notify_init ("AEq");
    NotifyNotification * notification = notify_notification_new (message, NULL,
@@ -178,15 +166,13 @@ static void notify (const char * message) {
 }
 
 static int command_main (const char * command) {
-   if (! config_init (config_path, preset_path, sizeof config_path))
-      return EXIT_FAILURE;
    if (! strcmp (command, "enable") ||
        ! strcmp (command, "disable") ||
        ! strcmp (command, "toggle")) {
-      read_config (config_path, & on, bands);
+      read_config (CONFIG_PATH, & on, bands);
       on = ! strcmp (command, "enable") || (! strcmp (command, "toggle") && ! on);
+      write_config (CONFIG_PATH, on, bands);
       notify (on ? "Equalizer enabled." : "Equalizer disabled.");
-      write_config (config_path, on, bands);
       return 0;
    }
    ERROR ("Unknown command: %s\n", command);
@@ -197,11 +183,7 @@ int main (int argc, char * * argv) {
    if (argc > 1)
       return command_main (argv[1]);
    gtk_init (NULL, NULL);
-   if (! config_init (config_path, preset_path, sizeof config_path)) {
-      error_main ();
-      return EXIT_FAILURE;
-   }
-   read_config (config_path, & on, bands);
+   read_config (CONFIG_PATH, & on, bands);
    create_window ();
    gtk_main ();
    return 0;
