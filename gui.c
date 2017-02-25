@@ -166,6 +166,10 @@ static void notify (const char * message) {
 }
 
 static int command_main (const char * command) {
+   if (! strcmp (command, "query")) {
+      read_config (CONFIG_PATH, & on, bands);
+      return (on ? 0 : 1);
+   }
    if (! strcmp (command, "enable") ||
        ! strcmp (command, "disable") ||
        ! strcmp (command, "toggle")) {
@@ -176,7 +180,8 @@ static int command_main (const char * command) {
       return 0;
    }
    ERROR ("Unknown command: %s\n", command);
-   return EXIT_FAILURE;
+   ERROR ("Known commands include: query, enable, disable, toggle\n");
+   return 1;
 }
 
 int main (int argc, char * * argv) {
