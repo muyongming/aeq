@@ -20,7 +20,8 @@ install :
 	chmod 0644 /usr/share/applications/aeq.desktop
 	mkdir -p /etc/aeq
 	cp config /etc/aeq/
-	chmod 0666 /etc/aeq/config
+	chown root:audio /etc/aeq/config
+	chmod 0664 /etc/aeq/config
 	update-desktop-database
 
 uninstall :
