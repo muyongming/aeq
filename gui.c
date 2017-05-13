@@ -25,14 +25,23 @@
 #include <libnotify/notify.h>
 
 #define MAX_GAIN 10
-#define STEP 1
+#define STEP 0.1
 
 static int on;
 static float bands[BANDS];
 static GtkWidget * toggle;
+static GtkWidget * val_labels[BANDS];
 static GtkWidget * sliders[BANDS];
 static int toggle_sig;
 static int slider_sigs[BANDS];
+
+static void update_labels (void) {
+   char buf[16];
+   for (int i = 0; i < BANDS; i ++) {
+      snprintf (buf, sizeof buf, "%.1f dB", bands[i]);
+      gtk_label_set_text ((GtkLabel *) val_labels[i], buf);
+   }
+}
 
 static void update (void) {
    g_signal_handler_block (toggle, toggle_sig);
@@ -43,12 +52,14 @@ static void update (void) {
       gtk_range_set_value ((GtkRange *) sliders[i], -bands[i]);
       g_signal_handler_unblock (sliders[i], slider_sigs[i]);
    }
+   update_labels ();
 }
 
 static void changed (void) {
    on = gtk_toggle_button_get_active ((GtkToggleButton *) toggle);
    for (int i = 0; i < BANDS; i ++)
       bands[i] = -(float) gtk_range_get_value ((GtkRange *) sliders[i]);
+   update_labels ();
    write_config (CONFIG_PATH, on, bands);
 }
 
@@ -58,24 +69,24 @@ static GtkWidget * create_toggle (void) {
    return toggle;
 }
 
-static char * format_value (GtkScale * s __attribute ((unused)), double val) {
-   return g_strdup_printf ("%d", -(int) val);
-}
-
-static GtkWidget * create_slider (int i) {
-   GtkWidget * vbox = gtk_vbox_new (0, 6);
-   GtkWidget * label = gtk_label_new (labels[i]);
-   gtk_label_set_angle ((GtkLabel *) label, 90);
-   gtk_box_pack_start ((GtkBox *) vbox, label, 1, 0, 0);
-   sliders[i] = gtk_vscale_new_with_range (-MAX_GAIN, MAX_GAIN, STEP);
-   gtk_scale_set_draw_value ((GtkScale *) sliders[i], 1);
-   gtk_scale_set_value_pos ((GtkScale *) sliders[i], GTK_POS_BOTTOM);
-   gtk_widget_set_size_request (sliders[i], -1, 144);
-   g_signal_connect (sliders[i], "format-value", (GCallback) format_value, NULL);
-   slider_sigs[i] = g_signal_connect (sliders[i], "value-changed", (GCallback)
-    changed, NULL);
-   gtk_box_pack_start ((GtkBox *) vbox, sliders[i], 0, 0, 0);
-   return vbox;
+static GtkWidget * create_sliders (void) {
+   GtkWidget * table = gtk_table_new (3, BANDS, 0);
+   gtk_table_set_row_spacings ((GtkTable *) table, 6);
+   gtk_table_set_col_spacings ((GtkTable *) table, 6);
+   for (int i = 0; i < BANDS; i ++) {
+      val_labels[i] = gtk_label_new (NULL);
+      gtk_label_set_angle ((GtkLabel *) val_labels[i], 90);
+      gtk_table_attach_defaults ((GtkTable *) table, val_labels[i], i, i + 1, 0, 1);
+      sliders[i] = gtk_vscale_new_with_range (-MAX_GAIN, MAX_GAIN, STEP);
+      gtk_scale_set_draw_value ((GtkScale *) sliders[i], 0);
+      gtk_widget_set_size_request (sliders[i], -1, 144);
+      slider_sigs[i] = g_signal_connect (sliders[i], "value-changed", (GCallback) changed, NULL);
+      gtk_table_attach_defaults ((GtkTable *) table, sliders[i], i, i + 1, 1, 2);
+      GtkWidget * label = gtk_label_new (labels[i]);
+      gtk_label_set_angle ((GtkLabel *) label, 90);
+      gtk_table_attach_defaults ((GtkTable *) table, label, i, i + 1, 2, 3);
+   }
+   return table;
 }
 
 static void open_preset (GtkDialog * win, gint resp) {
@@ -147,10 +158,7 @@ static void create_window (void) {
    GtkWidget * vbox = gtk_vbox_new (0, 6);
    gtk_container_add ((GtkContainer *) win, vbox);
    gtk_box_pack_start ((GtkBox *) vbox, create_toggle (), 0, 0, 0);
-   GtkWidget * hbox = gtk_hbox_new (0, 6);
-   gtk_box_pack_start ((GtkBox *) vbox, hbox, 0, 0, 0);
-   for (int i = 0; i < BANDS; i ++)
-      gtk_box_pack_start ((GtkBox *) hbox, create_slider (i), 0, 0, 0);
+   gtk_box_pack_start ((GtkBox *) vbox, create_sliders (), 0, 0, 0);
    gtk_box_pack_start ((GtkBox *) vbox, create_buttons (), 0, 0, 0);
    update ();
    gtk_widget_show_all (win);
