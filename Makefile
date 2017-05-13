@@ -14,6 +14,7 @@ libasound_module_pcm_aeq.so : aeq.c common.c common.h
 install :
 	cp aeq /usr/bin/
 	chmod 0755 /usr/bin/aeq
+	rm -f /usr/lib/alsa-lib/libasound_module_pcm_aeq.so  # delete then replace
 	cp libasound_module_pcm_aeq.so /usr/lib/alsa-lib/
 	chmod 0755 /usr/lib/alsa-lib/libasound_module_pcm_aeq.so
 	cp aeq.desktop /usr/share/applications/
