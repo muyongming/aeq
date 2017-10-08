@@ -35,7 +35,7 @@
 #define MAX_CHANS 10
 // Q value for band-pass filters 1.2247 = (3/2)^(1/2)
 // Gives 4 dB suppression at Fc*2 and Fc/2
-#define Q 1.224745
+#define Q 1.224745f
 
 typedef struct {
    int initted;
@@ -51,12 +51,12 @@ typedef struct {
 
 // 2nd order band-pass filter design
 static void bp2 (float * a, float * b, float fc) {
-   float th = 2 * M_PI * fc;
+   float th = 2 * (float)M_PI * fc;
    float C = (1 - tanf (th * Q / 2)) / (1 + tanf (th * Q / 2));
    a[0] = (1 + C) * cosf (th);
    a[1] = -C;
    b[0] = (1 - C) / 2;
-   b[1] = -1.005;
+   b[1] = -1.005f;
 }
 
 static void set_format (AEQState * s, int chans, int rate) {
@@ -64,7 +64,7 @@ static void set_format (AEQState * s, int chans, int rate) {
    s->rate = rate;
    // Calculate number of active filters
    s->K = BANDS;
-   while (s->K > 0 && freqs[s->K - 1] > (float) rate / (2.005 * Q))
+   while (s->K > 0 && freqs[s->K - 1] > (float) rate / (2.005f * Q))
       s->K --;
    // Generate filter taps
    for (int k = 0; k < s->K; k ++)

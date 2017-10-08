@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
-const float freqs[BANDS] = {31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000, 16000};
+const float freqs[BANDS] = {31.25f, 62.5f, 125, 250, 500, 1000, 2000, 4000, 8000, 16000};
 const char * const labels[BANDS + 1] = {"31.25 Hz", "62.5 Hz", "125 Hz",
  "250 Hz", "500 Hz", "1 kHz", "2 kHz", "4 kHz", "8 kHz", "16 kHz", "Pre"};
 
