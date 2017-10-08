@@ -49,7 +49,7 @@ static void update (void) {
    g_signal_handler_unblock (toggle, toggle_sig);
    for (int i = 0; i < BANDS + 1; i ++) {
       g_signal_handler_block (sliders[i], slider_sigs[i]);
-      gtk_range_set_value ((GtkRange *) sliders[i], -bands[i]);
+      gtk_range_set_value ((GtkRange *) sliders[i], bands[i]);
       g_signal_handler_unblock (sliders[i], slider_sigs[i]);
    }
    update_labels ();
@@ -58,7 +58,7 @@ static void update (void) {
 static void changed (void) {
    on = gtk_toggle_button_get_active ((GtkToggleButton *) toggle);
    for (int i = 0; i < BANDS + 1; i ++)
-      bands[i] = -(float) gtk_range_get_value ((GtkRange *) sliders[i]);
+      bands[i] = gtk_range_get_value ((GtkRange *) sliders[i]);
    update_labels ();
    write_config (CONFIG_PATH, on, bands);
 }
@@ -78,6 +78,7 @@ static GtkWidget * create_sliders (void) {
       gtk_label_set_angle ((GtkLabel *) val_labels[i], 90);
       gtk_table_attach_defaults ((GtkTable *) table, val_labels[i], i, i + 1, 0, 1);
       sliders[i] = gtk_vscale_new_with_range (-MAX_GAIN, MAX_GAIN, STEP);
+      gtk_range_set_inverted ((GtkRange *) sliders[i], 1);
       gtk_scale_set_draw_value ((GtkScale *) sliders[i], 0);
       gtk_widget_set_size_request (sliders[i], -1, 144);
       slider_sigs[i] = g_signal_connect (sliders[i], "value-changed", (GCallback) changed, NULL);
