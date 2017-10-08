@@ -47,6 +47,7 @@ typedef struct {
    float wq[MAX_CHANS][BANDS][2]; // Circular buffer for W data
    float gv[MAX_CHANS][BANDS]; // Gain factor for each channel and band
    int K; // Number of used EQ bands
+   float atten[MAX_CHANS];
 } AEQState;
 
 // 2nd order band-pass filter design
@@ -77,6 +78,7 @@ static void set_bands (AEQState * s, int on, const float bands[BANDS + 1]) {
    for (int i = 0; i < MAX_CHANS; i ++) {
       for (int k = 0; k < BANDS; k ++)
          s->gv[i][k] = powf (10, (bands[PREAMP_BAND] + bands[k]) / 20) - 1;
+      s->atten[i] = 1;
    }
 }
 
@@ -85,6 +87,7 @@ static void equalize (AEQState * s, int chan, const int16_t * in, int in_step,
    // Gain factor
    const float * g = s->gv[chan];
    const int16_t * end = in + in_step * samps;
+   float atten = s->atten[chan];
    while (in < end) {
       float f = * in;
       in += in_step;
@@ -99,9 +102,21 @@ static void equalize (AEQState * s, int chan, const int16_t * in, int in_step,
          wq[1] = wq[0];
          wq[0] = w;
       }
-      * out = (f > INT16_MAX) ? INT16_MAX : (f < INT16_MIN) ? INT16_MIN : f;
+      // Attenuate to prevent clipping
+      f *= atten;
+      if (f > INT16_MAX) {
+         atten *= INT16_MAX / f;
+         f = INT16_MAX;
+      } else if (f < INT16_MIN) {
+         atten *= INT16_MIN / f;
+         f = INT16_MIN;
+      }
+      * out = f;
       out += out_step;
+      // Gradually restore volume (10 dB over 10 seconds at 44.1 kHz)
+      atten = fminf (1, atten * 1.0000068f);
    }
+   s->atten[chan] = atten;
 }
 
 static int notify_new (const char * path) {
