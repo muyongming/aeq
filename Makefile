@@ -1,12 +1,12 @@
 all : aeq libasound_module_pcm_aeq.so
 
 aeq : gui.c common.c common.h
-	gcc -std=gnu99 -Wall -Wextra -O2 \
+	gcc -std=gnu99 -Wall -Wextra -O2 -g \
 	 `pkg-config --cflags --libs gtk+-2.0 libnotify` \
 	 -o aeq gui.c common.c
 
 libasound_module_pcm_aeq.so : aeq.c common.c common.h
-	gcc -std=gnu99 -Wall -Wextra -O2 -DPIC -fpic -shared \
+	gcc -std=gnu99 -Wall -Wextra -O2 -g -DPIC -fpic -shared \
 	 `pkg-config --cflags --libs alsa` \
 	 -Wl,-soname -Wl,libasound_module_pcm_aeq.so \
 	 -o libasound_module_pcm_aeq.so aeq.c common.c
