@@ -72,11 +72,11 @@ static void set_format (AEQState * s, int chans, int rate) {
    memset (& s->wq, 0, sizeof s->wq);
 }
 
-static void set_bands (AEQState * s, int on, const float bands[BANDS]) {
+static void set_bands (AEQState * s, int on, const float bands[BANDS + 1]) {
    s->on = on;
    for (int i = 0; i < MAX_CHANS; i ++) {
       for (int k = 0; k < BANDS; k ++)
-         s->gv[i][k] = powf (10, bands[k] / 20) - 1;
+         s->gv[i][k] = powf (10, (bands[PREAMP_BAND] + bands[k]) / 20) - 1;
    }
 }
 
@@ -140,7 +140,7 @@ static snd_pcm_sframes_t aeq_transfer (snd_pcm_extplug_t * p,
    }
    if (notify_changed (s->notify)) {
       int on;
-      float bands[BANDS];
+      float bands[BANDS + 1];
       read_config (CONFIG_PATH, & on, bands);
       set_bands (s, on, bands);
    }
@@ -183,7 +183,7 @@ static int aeq_init (snd_pcm_extplug_t * p) {
       return -EIO;
    }
    int on;
-   float bands[BANDS];
+   float bands[BANDS + 1];
    read_config (CONFIG_PATH, & on, bands);
    set_bands (s, on, bands);
    s->initted = 1;

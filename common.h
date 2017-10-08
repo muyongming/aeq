@@ -23,15 +23,16 @@
 #include <string.h>
 
 #define BANDS 10
+#define PREAMP_BAND 10
 #define CONFIG_PATH "/etc/aeq/config"
 
 #define ERROR(...) fprintf (stderr, "AEq: " __VA_ARGS__)
 #define FAIL(a, f) ERROR ("Failed to %s %s: %s.\n", a, f, strerror (errno))
 
 extern const float freqs[BANDS];
-extern const char * const labels[BANDS];
+extern const char * const labels[BANDS + 1]; /* last one is preamp */
 
-void read_config (const char * path, int * on, float bands[BANDS]);
-void write_config (const char * path, int on, const float bands[BANDS]);
+void read_config (const char * path, int * on, float bands[BANDS + 1]);
+void write_config (const char * path, int on, const float bands[BANDS + 1]);
 
 #endif // AEQ_COMMON_H

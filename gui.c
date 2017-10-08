@@ -28,16 +28,16 @@
 #define STEP 0.1
 
 static int on;
-static float bands[BANDS];
+static float bands[BANDS + 1];
 static GtkWidget * toggle;
-static GtkWidget * val_labels[BANDS];
-static GtkWidget * sliders[BANDS];
+static GtkWidget * val_labels[BANDS + 1];
+static GtkWidget * sliders[BANDS + 1];
 static int toggle_sig;
-static int slider_sigs[BANDS];
+static int slider_sigs[BANDS + 1];
 
 static void update_labels (void) {
    char buf[16];
-   for (int i = 0; i < BANDS; i ++) {
+   for (int i = 0; i < BANDS + 1; i ++) {
       snprintf (buf, sizeof buf, "%.1f dB", bands[i]);
       gtk_label_set_text ((GtkLabel *) val_labels[i], buf);
    }
@@ -47,7 +47,7 @@ static void update (void) {
    g_signal_handler_block (toggle, toggle_sig);
    gtk_toggle_button_set_active ((GtkToggleButton *) toggle, on);
    g_signal_handler_unblock (toggle, toggle_sig);
-   for (int i = 0; i < BANDS; i ++) {
+   for (int i = 0; i < BANDS + 1; i ++) {
       g_signal_handler_block (sliders[i], slider_sigs[i]);
       gtk_range_set_value ((GtkRange *) sliders[i], -bands[i]);
       g_signal_handler_unblock (sliders[i], slider_sigs[i]);
@@ -57,7 +57,7 @@ static void update (void) {
 
 static void changed (void) {
    on = gtk_toggle_button_get_active ((GtkToggleButton *) toggle);
-   for (int i = 0; i < BANDS; i ++)
+   for (int i = 0; i < BANDS + 1; i ++)
       bands[i] = -(float) gtk_range_get_value ((GtkRange *) sliders[i]);
    update_labels ();
    write_config (CONFIG_PATH, on, bands);
@@ -70,10 +70,10 @@ static GtkWidget * create_toggle (void) {
 }
 
 static GtkWidget * create_sliders (void) {
-   GtkWidget * table = gtk_table_new (3, BANDS, 0);
+   GtkWidget * table = gtk_table_new (3, BANDS + 1, 0);
    gtk_table_set_row_spacings ((GtkTable *) table, 6);
    gtk_table_set_col_spacings ((GtkTable *) table, 6);
-   for (int i = 0; i < BANDS; i ++) {
+   for (int i = 0; i < BANDS + 1; i ++) {
       val_labels[i] = gtk_label_new (NULL);
       gtk_label_set_angle ((GtkLabel *) val_labels[i], 90);
       gtk_table_attach_defaults ((GtkTable *) table, val_labels[i], i, i + 1, 0, 1);
