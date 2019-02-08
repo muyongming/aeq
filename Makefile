@@ -12,25 +12,26 @@ libasound_module_pcm_aeq.so : aeq.c common.c common.h
 	 -o libasound_module_pcm_aeq.so aeq.c common.c
 
 install :
-	cp aeq /usr/bin/
-	chmod 0755 /usr/bin/aeq
-	rm -f /usr/lib/alsa-lib/libasound_module_pcm_aeq.so  # delete then replace
-	cp libasound_module_pcm_aeq.so /usr/lib/alsa-lib/
-	chmod 0755 /usr/lib/alsa-lib/libasound_module_pcm_aeq.so
-	cp aeq.desktop /usr/share/applications/
-	chmod 0644 /usr/share/applications/aeq.desktop
-	mkdir -p /etc/aeq
-	cp config /etc/aeq/
-	chown root:audio /etc/aeq/config
-	chmod 0664 /etc/aeq/config
-	update-desktop-database
+	mkdir -p $(DESTDIR)/usr/bin
+	cp aeq $(DESTDIR)/usr/bin/
+	chmod 0755 $(DESTDIR)/usr/bin/aeq
+	mkdir -p $(DESTDIR)/usr/lib/alsa-lib
+	rm -f $(DESTDIR)/usr/lib/alsa-lib/libasound_module_pcm_aeq.so  # delete then replace
+	cp libasound_module_pcm_aeq.so $(DESTDIR)/usr/lib/alsa-lib/
+	chmod 0755 $(DESTDIR)/usr/lib/alsa-lib/libasound_module_pcm_aeq.so
+	mkdir -p $(DESTDIR)/usr/share/applications
+	cp aeq.desktop $(DESTDIR)/usr/share/applications/
+	chmod 0644 $(DESTDIR)/usr/share/applications/aeq.desktop
+	mkdir -p $(DESTDIR)/etc/aeq
+	cp config $(DESTDIR)/etc/aeq/
+	chown root:audio $(DESTDIR)/etc/aeq/config
+	chmod 0664 $(DESTDIR)/etc/aeq/config
 
 uninstall :
-	rm -f /usr/bin/aeq
-	rm -f /usr/lib/alsa-lib/libasound_module_pcm_aeq.so
-	rm -f /usr/share/applications/aeq.desktop
-	rm -rf /etc/aeq
-	update-desktop-database
+	rm -f $(DESTDIR)/usr/bin/aeq
+	rm -f $(DESTDIR)/usr/lib/alsa-lib/libasound_module_pcm_aeq.so
+	rm -f $(DESTDIR)/usr/share/applications/aeq.desktop
+	rm -rf $(DESTDIR)/etc/aeq
 
 clean :
 	rm -f aeq libasound_module_pcm_aeq.so
